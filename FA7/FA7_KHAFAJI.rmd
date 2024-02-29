@@ -1,0 +1,90 @@
+---
+title: "FA7_KHAFAJI"
+author: "Mostafa Khafaji"
+date: "2024-02-29"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1 -  average 4 per minute, use r to obtain:
+
+A. P(T<=0.25) = P(time between submissions is at most 15 seconds)
+
+B. P(T>0.5) = P(time between Submission greater than 30 seconds)
+
+C. P(0.25 < T < 1) = P(Time between submissions is between 15 seconds and 1 minute)
+
+since the average is in terms of 4 tasks per minute, then the average time for 1 task is 0.25 minutes. or 15 seconds, we can use this as our new lambda
+
+```{r 1stpois}
+lamb <- 4
+#q1
+cat("The Probability that time between submissions is at most 15 seconds is: ", pexp(0.25, lamb)*100,"%\n\n", sep="")
+
+#q2
+cat("The Probability that time between submissions is greater than 30 seconds is: ", (1-pexp(0.5, lamb))*100,"%\n\n", sep="")
+
+#q3
+cat("The Probability that time between submissions is between 15 seconds and 1 minute is: ", (pexp(1,lamb) - pexp(0.25, lamb))*100,"%\n\n", sep="")
+```
+
+## Question 2 - The average rate of job submissions in a computer center is 2 per minute. If it can be assumed that the number of submissions per minute has a Poisson distribution, calculate the probability that:
+
+A. More than 2 jobs will arrive in a minute.
+
+B. At least 30 seconds will elapse between any two jobs
+
+C. Less than 30 seconds will elapse between any two jobs
+
+D. A Job will arrive in the next 30 seconds, if no jobs arrived in the last 30 seconds.
+
+
+
+
+```{r}
+l <- 2
+#A
+
+cat("The Probability that more than 2 jobs will arrive in a minute.: ", (1-ppois(2, 2))*100,"%\n\n", sep="")
+
+#B
+cat("The Probability that time between submissions is at most 15 seconds is: ", pexp(0.25, l)*100,"%\n\n", sep="")
+
+#c
+cat("The Probability that less than 30 seconds will elapse between any two jobs is: ", pexp(0.5, l)*100,"%\n\n", sep="")
+
+#D
+cat("The Probability that Job will arrive in the next 30 seconds, if no jobs arrived in the last 30 seconds: ", ((pexp(1,l)-pexp(0.5,l))/(1-pexp(0.5,l)))*100,"%\n\n", sep="")
+
+```
+
+##Question 3 - A Website Receives an average of 15 visits per hour, which arrive following a poisson distribution.
+
+A. Calculate the probability that at least 10 minutes will elapse without a visit.
+
+B. What is the probability that in any hour, there will be less than 8 visits.
+
+C. Suppose that 15 minutes have elapsed since the last visit, what is the probability that a visit will occur in the next 15 minutes.
+
+D. Calculate the top quartile, explain what it means.
+
+```{r}
+la <- 15
+
+#A
+cat("The Probability that at least 10 minutes will elapse without a visit: ", (1-pexp(1/6,la))*100,"%\n\n", sep="")
+
+#B
+cat("The Probability that in any hour, there will be less than 8 visits: ", (ppois(7,la))*100,"%\n\n", sep="")
+
+#C
+cat("The Probability that when 15 minutes have elapsed since the last visit, a visit will occur in the next 15 minutes: ", ((pexp(0.5,la)-pexp(0.25,la))/(1-pexp(0.25,la)))*100,"%\n\n", sep="")
+
+#D
+cat("The top Quartile is ", qexp(0.75, la)*60," minutes. This means that there is a 75% probability that there is a 5 minute gap between 2 visits.",sep = "")
+
+```
+
