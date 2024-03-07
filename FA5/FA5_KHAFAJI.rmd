@@ -1,0 +1,256 @@
+---
+title: "FA5_KHAFAJI"
+author: "Mostafa Khafaji"
+date: "2024-03-07"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(data.tree)
+library(webshot2)
+```
+
+## Question 1
+
+An email message can travel through one of three server nodes. The percentage of errors in each of the servers and the percentage of messages that travel through each route are shown in the following table. Assume that the servers are independent
+
+```{r servers, echo=FALSE}
+s_df <- data.frame("servers"=c("server_1","server_2","server_3"),
+                   "Percentage_messages" = c(0.4,0.25,0.35),
+                   "Percentage_Errors" = c(0.01,0.02,0.015)
+                   )
+
+print(s_df)
+
+```
+
+**(A) What is the probability of receiving an email containing an error?**
+
+We can simply get the sum of the product of the percentage of messages in each server and their respective error percentage:
+
+```{r}
+error_p <- sum(apply(s_df[, 2:3], MARGIN = 1, prod))
+
+cat("The probability of an email containing an error is ",error_p*100,"%\n\n", sep = "")
+```
+
+**(B) What is the probability that a message will arrive without error?**
+
+We can simply take the complement of the above answer:
+
+```{r}
+no_error_p <- 1- error_p
+
+cat("The probability of an email containing no error is ",no_error_p*100,"%\n\n", sep = "")
+```
+
+**(C) If a message arrives without error, what is the probability that it was sent through server 1?** 
+
+we can think of what is being asked as "the probability that the email was sent through server 1, given that it arrives without error"
+
+then, 
+
+p(Server1|No error) = p(Server1 ∩ No Error)/p(No Error)
+
+```{r}
+p_c <- (s_df[1,2]*(1-s_df[1,3]))/no_error_p
+cat("The probability of message being sent through server 1, given that there is no error, is ",p_c*100,"%\n\n", sep = "")
+
+
+```
+
+## Question 2
+
+A software company surveyed managers to determine the probability that they
+would buy a new graphics package that includes three-dimensional graphics.
+About 20% of office managers were certain that they would not buy the pack-
+age, 70% claimed that they would buy, and the others were undecided.
+
+Of those who said that they would not buy the package, only 10% said that they were
+interested in upgrading their computer hardware. Of those interested in buying
+the graphics package, 40% were also interested in upgrading their computer
+hardware. Of the undecided, 20% were interested in upgrading their computer
+hardware.
+
+Let A denote the intention of not buying, B the intention of buying, C the
+undecided, and G the intention of upgrading the computer hardware
+
+we can table it by:
+
+```{r pressure, echo=FALSE}
+soft_df <- data.frame("Decision"=c("A","B","C"),
+                      "Percentage_decision"=c(0.2,0.7,0.1),
+                      "G"=c(0.1,0.4,0.2))
+print(soft_df)
+```
+
+
+**(A) Calculate the probability that a manager chosen at random will not upgrade the computer hardware (P(~G))**
+
+We can simply find the sum of the products of each decision and their respective probability that they are interested, and find the complement.
+
+```{r}
+no_up_p <- 1-sum(apply(soft_df[,2:3],MARGIN = 1,prod))
+cat("The probability that a manager chosen at random will not upgrade the computer hardware is ",no_up_p*100,"%\n\n", sep = "")
+```
+
+
+**(B) Explain what is meant by the posterior probability of B given G, P(B|G).**
+
+That, the probability of if a random manager is interested in upgrading their system, the manager will buy the product.
+
+We can write the formula as:
+
+p(B|G) = p(B∩G)/p(G)
+```{r}
+p_b <- prod(soft_df[2,2:3])/sum(apply(soft_df[,2:3],MARGIN = 1,prod))
+cat("The probability that if a random manager is interested in upgrading their system, the manager will buy the product is ",p_b*100,"%\n\n", sep = "")
+
+```
+
+**(C) Construct a tree diagram and use it to calculate the following probabilities: P(G), P(B|G), P(B|~G), P(C|G), P(~C|~G).**
+
+```{r tree, echo=FALSE}
+
+library(tidyverse)
+library(data.tree)
+
+
+prob_data <- data.frame("pathString"=c("A","A/G","A/~G","B","B/G","B/~G","C","C/G","C/~G"),
+                        "prob"=c(0.2,0.1,0.9,0.7,0.4,0.6,0.1,0.2,0.8))
+
+prob_data <- prob_data %>%  mutate(tree_level = str_count(string = pathString, pattern = "/") + 1,
+                                   tree_group = str_replace(string = pathString, pattern = "/.*", replacement = ""),
+                                   node_type = "decision_node"
+)
+
+max_tree_level <- max(prob_data$tree_level, na.rm = T) 
+
+parent_lookup <- prob_data %>% distinct(pathString, prob) # get distinct probabilities to facilitate finding parent node probability
+
+for (i in 1:(max_tree_level -  1)) { # loop through all tree layers to get all immidiate parent probabilities (to calculate cumulative prob)
+  
+  names(parent_lookup)[1] <-paste0("parent",i)
+  names(parent_lookup)[2] <-paste0("parent_prob",i)
+  
+  for (j in 1:i) {
+    
+    if (j == 1)  prob_data[[paste0("parent",i)]] <- sub("/[^/]+$", "", prob_data$pathString)
+    else if (j  > 1) prob_data[[paste0("parent",i)]] <- sub("/[^/]+$", "", prob_data[[paste0("parent",i)]])
+  }
+  
+  prob_data <- prob_data %>% left_join(parent_lookup, by = paste0("parent",i))
+  
+}
+
+
+prob_data$overall_prob <- apply(prob_data %>% select(contains("prob"))  , 1, prod, na.rm = T)  # calculate cumulative probability    
+
+terminal_data <- prob_data %>%  filter(tree_level == max_tree_level) %>% # create new rows that will display terminal/final step calulcations on the tree
+  mutate(node_type = 'terminal',
+         pathString = paste0(pathString, "/overall"),
+         prob = NA,
+         tree_level = max_tree_level + 1)
+
+start_node <- "Buying" # name the root node
+
+prob_data = bind_rows(prob_data, terminal_data) %>%  # bind everything together 
+  mutate(pathString = paste0(start_node,"/",pathString),
+         overall_prob = ifelse(node_type == 'terminal', overall_prob, NA),
+         prob_rank = rank(-overall_prob, ties.method = "min", na.last = "keep"))
+
+prob_data = bind_rows(prob_data, data.frame(pathString = start_node, node_type = 'start', tree_level = 0)) %>% # add one new row to serve as the start node label
+  select(-contains("parent"))
+
+make_my_tree <- function(mydf, display_level = NULL, show_rank = FALSE, direction = "LR") {
+  
+  if (!is.null(display_level) ) {
+    mydf <- mydf %>% filter(tree_level <= display_level)
+    
+  }
+  
+  mytree <- as.Node(mydf) 
+  
+  GetEdgeLabel <- function(node) switch(node$node_type, node$prob)
+  
+  GetNodeShape <- function(node) switch(node$node_type, start = "box", node_decision = "circle", terminal = "none")
+  
+  
+  GetNodeLabel <- function(node) switch(node$node_type, 
+                                        terminal = ifelse(show_rank  == TRUE, paste0("Prob: ", node$overall_prob,"\nRank: ", node$prob_rank),
+                                                          paste0("Prob: ", node$overall_prob)),
+                                        node$node_name)
+  
+  SetEdgeStyle(mytree, fontname = 'helvetica', label = GetEdgeLabel)
+  
+  SetNodeStyle(mytree, fontname = 'helvetica', label = GetNodeLabel, shape = GetNodeShape)
+  
+  SetGraphStyle(mytree, rankdir = direction) 
+  
+  plot(mytree)
+  
+}
+
+make_my_tree(prob_data)
+```
+
+**P(G) = 0.02 + 0.28 + 0.02 = 0.32**
+
+**P(B|G) = 0.28/0.32**
+```{r echo=FALSE}
+cat("p(B|G) = ", 0.28/0.32 * 100, "%",sep = "" )
+```
+
+**P(B|~G) = 0.42 / 0.18+0.42+0.08**
+```{r echo=FALSE}
+cat("p(B|~G) = ", 0.42/(0.18+0.42+0.08) * 100, "%",sep = "" )
+```
+
+**P(C|G) = 0.02/0.32** 
+```{r echo=FALSE}
+cat("p(C|G) = ", 0.02/0.32 * 100, "%",sep = "" )
+```
+
+**P( ~ C| ~G) = (0.42+0.18)/(0.18+0.42+0.08)**
+```{r echo=FALSE}
+cat("p(~C|~G) = ", (0.42+0.18)/(0.18+0.42+0.08) * 100, "%",sep = "" )
+```
+
+
+## Question 3
+
+A malicious spyware can infect a computer system though the Internet or through email. The spyware comes through the Internet 70% of the time and 30% of the time, it gets in through email. If it enters via the Internet the anti-virus detector will detect it with probability 0.6, and via email, it is detected with probability 0.8.
+
+we can tabulize it as:
+
+```{r echo=FALSE}
+vir_df <- data.frame("medium"=c("Internet","Email"),
+                     "prob_medium" = c(0.7,0.3),
+                     "antivirus_detect"= c(0.6,0.8))
+print(vir_df)
+```
+
+**(a) What is the probability that this spyware infects the system?**
+
+Lets take the complement of the probability that an antivirus detects the virus:
+
+Again, 1-sum of the product of the respective probabilities:
+
+```{r}
+vir_p <- 1-sum(apply(vir_df[,2:3],MARGIN = 1,prod))
+cat("The probability that that this spyware infects the system is ",vir_p*100,"%\n\n", sep = "")
+```
+
+**(b) If the spyware is detected, what is the probability that it came through the Internet?**
+
+the question is essentially asking p(Internet|antivirus_detect)
+
+= p(Internet ∩ Antivirus_detect)/p(Antivirus_detect)
+
+```{r}
+bb_p <- prod(vir_df[1,2:3])/sum(apply(vir_df[,2:3],MARGIN = 1,prod))
+cat("The probability that If the spyware is detected, it came through the Internet is ",bb_p*100,"%\n\n", sep = "")
+```
+
